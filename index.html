@@ -1,0 +1,37 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App de Tareas - Proyecto</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header>
+    <h1>Mi App de Tareas</h1>
+  </header>
+
+  <!-- Menú arriba -->
+  <aside>
+    <p>Menú</p>
+  </aside>
+
+  <main>
+    <section>
+      <h2>Lista de Tareas</h2>
+
+      <!-- Formulario para añadir tareas -->
+      <form id="form-tarea">
+        <input type="text" id="input-tarea" placeholder="Escribe una tarea..." required>
+        <button type="submit">Añadir</button>
+      </form>
+
+      <!-- Contenedor de tareas -->
+      <div id="lista-tareas"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
