@@ -1,37 +1,94 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>App de Tareas - Proyecto</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>TaskFlow - Mint Pro 🌿</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Arial', 'Helvetica', 'sans-serif'] },
+          colors: {
+            mint: { 50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e', 600: '#16a34a' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .tarea-pendiente { border-left: 5px solid #22c55e; }
+    .tarea-completada { opacity: 0.6; background-color: #f9fafb; }
+    .tarea-completada span { text-decoration: line-through; color: #9ca3af; }
+    .dark .tarea-completada { background-color: #1f2937; }
+  </style>
 </head>
-<body>
+<body class="bg-mint-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen transition-colors duration-300">
 
-  <header>
-    <h1>Mi App de Tareas</h1>
+  <header class="bg-white dark:bg-gray-800 border-b border-mint-200 dark:border-gray-700 p-4 sticky top-0 z-10 shadow-sm">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+      <h1 class="text-2xl font-black text-mint-600">TaskFlow</h1>
+      <button id="dark-mode-toggle" aria-label="Modo color" class="p-2 rounded-full hover:bg-mint-100 dark:hover:bg-gray-700">🌙</button>
+    </div>
   </header>
 
-  <!-- Menú arriba -->
-  <aside>
-    <p>Menú</p>
-  </aside>
+  <main class="max-w-6xl mx-auto p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+    <section class="md:col-span-2 space-y-6">
+      
+      <div class="relative">
+        <label for="buscador" class="sr-only">Buscar tareas</label>
+        <input type="text" id="buscador" placeholder="🔍 Buscar por nombre..." 
+               class="w-full bg-white dark:bg-gray-800 border-2 border-mint-200 dark:border-gray-700 rounded-2xl px-5 py-3 outline-none focus:border-mint-500 dark:text-white shadow-sm">
+      </div>
 
-  <main>
-    <section>
-      <h2>Lista de Tareas</h2>
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-md border border-mint-100 dark:border-gray-700">
+        <form id="form-tarea" class="space-y-4">
+          <div class="flex flex-col gap-2">
+            <label for="input-tarea" class="text-xs font-bold text-mint-600 uppercase ml-1">¿Qué tienes pendiente?</label>
+            <div class="flex gap-2">
+              <input type="text" id="input-tarea" placeholder="Ej. Comprar pan" required
+                     class="flex-1 bg-gray-50 dark:bg-gray-700 border border-mint-100 dark:border-gray-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-mint-500">
+              <button type="submit" class="bg-mint-500 hover:bg-mint-600 text-white px-6 rounded-xl font-bold shadow-lg transition-transform active:scale-95 text-xl">+</button>
+            </div>
+          </div>
+        </form>
+      </div>
 
-      <!-- Formulario para añadir tareas -->
-      <form id="form-tarea">
-        <input type="text" id="input-tarea" placeholder="Escribe una tarea..." required>
-        <button type="submit">Añadir</button>
-      </form>
+      <div class="flex flex-wrap gap-2 border-b border-mint-100 dark:border-gray-700 pb-2 items-center">
+        <button onclick="cambiarFiltro('todas')" class="text-xs font-bold px-3 py-1 rounded-lg hover:bg-mint-100 dark:hover:bg-gray-700">Todas</button>
+        <button onclick="cambiarFiltro('pendientes')" class="text-xs font-bold px-3 py-1 rounded-lg hover:bg-mint-100 dark:hover:bg-gray-700">Pendientes</button>
+        <button onclick="cambiarFiltro('completadas')" class="text-xs font-bold px-3 py-1 rounded-lg hover:bg-mint-100 dark:hover:bg-gray-700">Hechas</button>
+        
+        <div class="ml-auto flex gap-2">
+            <button onclick="marcarTodasCompletadas()" class="text-[10px] font-bold uppercase px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-mint-100">Marcar todas</button>
+            <button onclick="borrarHechas()" class="text-[10px] font-bold uppercase px-3 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100">Limpiar Hechas</button>
+        </div>
+      </div>
 
-      <!-- Contenedor de tareas -->
-      <div id="lista-tareas"></div>
+      <div id="lista-tareas" class="space-y-4"></div>
     </section>
-  </main>
 
+    <aside class="space-y-4">
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-lg border border-mint-200 dark:border-gray-700 sticky top-24">
+        <h2 class="text-sm font-bold text-gray-400 uppercase mb-4">Estadísticas</h2>
+        <div class="space-y-4">
+          <div class="flex justify-between items-end">
+            <span class="text-4xl font-black text-mint-600" id="total">0</span>
+            <span class="text-xs text-gray-400">Total tareas</span>
+          </div>
+          <div class="h-3 bg-mint-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div id="progreso-bar" class="bg-mint-500 h-full transition-all duration-700" style="width: 0%"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-[10px] font-bold uppercase">
+            <div class="p-2 bg-mint-50 dark:bg-gray-700 rounded-lg text-mint-600">Hechas: <span id="completadas">0</span></div>
+            <div class="p-2 bg-orange-50 dark:bg-gray-800 rounded-lg text-orange-400">Faltan: <span id="pendientes">0</span></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
   <script src="app.js"></script>
 </body>
+</html>
