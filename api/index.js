@@ -7,9 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 // Base de datos temporal en memoria
-let tareas = [
-  { id: 1, title: '¡Servidor conectado! 🌿', category: 'General', completed: false }
-];
+let tareas = [];
 
 // 1. Obtener tareas (Corresponde a window.cargarTareas en app.js)
 app.get('/api/tareas', (req, res) => {
