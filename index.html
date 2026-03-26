@@ -18,21 +18,20 @@
       }
     }
   </script>
-  <style>
-    /* Estilos de Tareas */
-    .tarea-completada { opacity: 0.5 !important; background-color: #f3f4f6 !important; border-color: #e5e7eb !important; }
-    .tarea-completada .titulo-txt { text-decoration: line-through !important; color: #9ca3af !important; }
+ <style>
+    /* Estilos de Tareas - */
+    .tarea-completada { opacity: 0.5; background-color: #f3f4f6; border-color: #e5e7eb; }
+    .tarea-completada .titulo-txt { text-decoration: line-through; color: #9ca3af; }
     
-    /* Modo Oscuro - Corrección Selects */
-    .dark { color-scheme: dark; }
+    /* Modo Oscuro - Forzamos los colores cuando la clase .dark está activa */
     .dark .tarea-completada { background-color: #1e293b !important; border-color: #334155 !important; }
     .dark .titulo-txt { color: #94a3b8 !important; }
 
     .dark select, .dark select option {
-      background-color: #1e293b !important;
-      color: #f0fdf4 !important;
+      background-color: #1e293b;
+      color: #f0fdf4;
     }
-  </style>
+</style>
 </head>
 <body class="bg-mint-50 dark:bg-[#0f172a] text-gray-800 dark:text-mint-100 min-h-screen transition-colors duration-500 flex flex-col">
 
@@ -84,7 +83,9 @@
           </select>
         </div>
       </div>
-
+<div id="loading-state" class="hidden text-center py-10">
+    <span class="text-mint-600 font-bold animate-pulse text-sm">🌿 Sincronizando tareas...</span>
+</div>
       <div id="lista-tareas" class="space-y-4"></div>
     </section>
 

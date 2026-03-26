@@ -1,48 +1,52 @@
 const express = require('express');
-const cors = require('cors'); // Para que no me tire error de CORS en el navegador al hacer fetch
+const cors = require('cors');
 const app = express();
 
+// Habilitamos CORS para que el frontend pueda hablar con el backend
 app.use(cors());
-app.use(express.json()); // Necesario para poder leer el req.body en el POST
+app.use(express.json());
 
-// Por ahora guardo las tareas en este array temporal (en el futuro irá una BBDD real)
-let tareasDB = [];
+// Base de datos temporal en memoria
+let tareas = [
+  { id: 1, title: '¡Servidor conectado! 🌿', category: 'General', completed: false }
+];
 
-// GET: Mando todas las tareas al frontend
-app.get('/api/tareas', async (req, res) => {
-    try {
-        // Le pongo un retraso de 1 seg para que el profe pueda ver el mensaje de carga asíncrono
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        res.status(200).json({ success: true, data: tareasDB });
-    } catch (error) {
-        console.error("Fallo al pedir las tareas:", error);
-        res.status(500).json({ success: false, message: "Error interno del servidor" });
-    }
+// 1. Obtener tareas (Corresponde a window.cargarTareas en app.js)
+app.get('/api/tareas', (req, res) => {
+  res.json({ success: true, data: tareas });
 });
 
-// POST: Recibo una tarea nueva y la guardo
-app.post('/api/tareas', async (req, res) => {
-    try {
-        const nuevaTarea = req.body;
-        
-        // Verifico que no me manden un objeto vacío
-        if (!nuevaTarea || !nuevaTarea.title) {
-            return res.status(400).json({ success: false, message: "Faltan datos de la tarea" });
-        }
-        
-        tareasDB.unshift(nuevaTarea); // La meto al principio del array
-        res.status(201).json({ success: true, data: nuevaTarea });
-    } catch (error) {
-        console.error("Fallo al guardar la tarea:", error);
-        res.status(500).json({ success: false, message: "Error al guardar la tarea" });
-    }
+// 2. Crear tarea (Corresponde a form.onsubmit en app.js)
+app.post('/api/tareas', (req, res) => {
+  const nueva = { ...req.body, id: Date.now() };
+  tareas.push(nueva);
+  res.status(201).json({ success: true, data: nueva });
 });
 
-// Dejo el puerto preparado para Vercel o el 3000 para probar en local
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Servidor escuchando en el puerto ${PORT}`);
+// 3. Editar estado (Corresponde a window.toggleTarea y marcarTodas en app.js)
+app.patch('/api/tareas/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = tareas.findIndex(t => t.id === id);
+  if (index !== -1) {
+    tareas[index].completed = !tareas[index].completed;
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ success: false });
+  }
 });
 
-// Exporto la app para que Vercel la pueda levantar bien
+// 4. Borrar (Corresponde a window.borrarTarea y eliminarTodo en app.js)
+app.delete('/api/tareas/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  tareas = tareas.filter(t => t.id !== id);
+  res.json({ success: true });
+});
+
+// Configuración para Vercel
 module.exports = app;
+
+// Inicio del servidor en local
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = 3000;
+  app.listen(PORT, () => console.log(`✅ Servidor en http://localhost:${PORT}`));
+}

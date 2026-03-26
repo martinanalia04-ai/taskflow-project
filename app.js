@@ -1,156 +1,157 @@
-const form = document.getElementById('form-tarea');
-const input = document.getElementById('input-tarea');
-const selectCat = document.getElementById('select-categoria');
-const lista = document.getElementById('lista-tareas');
-const totalTxt = document.getElementById('total');
-const porcentajeTxt = document.getElementById('porcentaje-txt');
-const barra = document.getElementById('progreso-bar');
-const btnDark = document.getElementById('dark-mode-toggle');
-const buscador = document.getElementById('buscador');
-
-// Ahora arranca vacío y se llena con lo que devuelve el backend
+// Detecta automáticamente si estás en local o en Vercel
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://localhost:3000' 
+    : '';
 let tareas = [];
-let fEstado = 'todas';
-let fCat = 'Todas';
+let fEstado = 'todas'; // Filtro de estado: todas, pendientes, completadas
+let fCat = 'Todas';    // Filtro de categoría
 
-// --- Lógica del Modo Oscuro ---
-const actualizarIcono = () => {
-    btnDark.innerText = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
-};
+window.cargarTareas = async () => {
+    toggleLoading(true); 
 
-if (localStorage.getItem('theme') === 'dark') {
-    document.documentElement.classList.add('dark');
-}
-actualizarIcono();
+    // ESTA LÍNEA ES EL TRUCO: Crea una pausa de 1.5 segundos
+    await new Promise(resolve => setTimeout(resolve, 1500)); 
 
-btnDark.onclick = () => {
-    document.documentElement.classList.toggle('dark');
-    const esOscuro = document.documentElement.classList.contains('dark');
-    localStorage.setItem('theme', esOscuro ? 'dark' : 'light');
-    actualizarIcono();
-};
-
-// --- Extra: Mensaje de espera mientras el server responde ---
-const mostrarCargando = (cargando) => {
-    if (cargando) {
-        lista.innerHTML = `
-            <div class="flex justify-center items-center p-10">
-                <div class="text-center">
-                    <span class="text-4xl animate-spin block mb-4">⏳</span>
-                    <p class="text-mint-600 dark:text-mint-400 font-bold animate-pulse">
-                        Cargando tareas del servidor...
-                    </p>
-                </div>
-            </div>`;
-    }
-};
-
-// --- Conexión con el Backend (API) ---
-
-// Pido las tareas al server al cargar la página
-const cargarTareasDesdeAPI = async () => {
-    mostrarCargando(true); // Muestro el loader visual
-    
     try {
-        const response = await fetch('/api/tareas');
-        const json = await response.json();
-        
-        if (json.success) {
-            tareas = json.data;
-            actualizarApp(); // Pinto las tareas
-        }
-    } catch (error) {
-        console.error("Error al traer los datos:", error);
-        lista.innerHTML = `<div class="p-6 text-center text-red-500 font-bold">Uy, no se pudo conectar con el servidor.</div>`;
+        const res = await fetch(`${API_URL}/api/tareas`);
+        const json = await res.json();
+        tareas = json.data;
+        window.render(); 
+    } catch (e) {
+        console.error("Error: ¿Prendiste el servidor?", e);
+    } finally {
+        toggleLoading(false); 
     }
 };
 
-// Mando la tarea nueva al server
-const guardarTareaAPI = async (nuevaTarea) => {
-    try {
-        const response = await fetch('/api/tareas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(nuevaTarea)
-        });
-        
-        const json = await response.json();
-        if (json.success) {
-            tareas.unshift(json.data); // Agrego la tarea que me confirma el server
-            actualizarApp();
-        }
-    } catch (error) {
-        console.error("Error al hacer el POST:", error);
-        alert("No se pudo guardar la tarea en el servidor");
-    }
-};
+// 2. Dibujar en pantalla (CON FILTROS ACTIVOS)
+window.render = () => {
+    const lista = document.getElementById('lista-tareas');
+    const buscador = document.getElementById('buscador');
+    if (!lista) return;
 
-// --- Renderizado y Filtros ---
-function actualizarApp() {
-    const busq = buscador.value.toLowerCase();
+    // --- LÓGICA DE FILTRADO ---
+    const textoBusqueda = buscador ? buscador.value.toLowerCase() : '';
     
-    const filtradas = tareas.filter(t => {
-        const cBusq = t.title.toLowerCase().includes(busq);
-        const cEstado = fEstado === 'todas' || (fEstado === 'pendientes' ? !t.completed : t.completed);
-        const cCat = fCat === 'Todas' || t.category === fCat;
-        return cBusq && cEstado && cCat;
+    const tareasFiltradas = tareas.filter(t => {
+        const coincideBusqueda = t.title.toLowerCase().includes(textoBusqueda);
+        const coincideEstado = fEstado === 'todas' || (fEstado === 'pendientes' ? !t.completed : t.completed);
+        const coincideCat = fCat === 'Todas' || t.category === fCat;
+        return coincideBusqueda && coincideEstado && coincideCat;
     });
 
     lista.innerHTML = '';
-    filtradas.forEach(t => {
-        const item = document.createElement('div');
-        const estadoClase = t.completed ? 'tarea-completada shadow-none' : 'shadow-md shadow-mint-900/5';
-        
-        item.className = `flex justify-between items-start p-6 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all ${estadoClase}`;
-        
-        item.innerHTML = `
+    tareasFiltradas.forEach(t => {
+        const div = document.createElement('div');
+        div.className = `flex justify-between items-start p-6 rounded-2xl border border-gray-100 dark:border-slate-800 transition-all ${t.completed ? 'tarea-completada' : 'bg-white dark:bg-slate-900'}`;
+        div.innerHTML = `
             <div class="flex items-start gap-5 w-full">
-                <input type="checkbox" ${t.completed ? 'checked' : ''} class="w-6 h-6 accent-mint-500 cursor-pointer mt-1 flex-shrink-0">
+                <input type="checkbox" ${t.completed ? 'checked' : ''} class="w-6 h-6 cursor-pointer" onchange="window.toggleTarea(${t.id})">
                 <div class="flex flex-col flex-1">
-                    <span class="titulo-txt text-xl font-bold dark:text-slate-100 tracking-tight leading-tight break-words">${t.title}</span>
-                    <span class="text-[9px] font-black uppercase tracking-widest text-mint-600 dark:text-mint-400 bg-mint-50 dark:bg-slate-800 border border-transparent dark:border-slate-700 px-3 py-1 rounded-full mt-3 w-fit">${t.category}</span>
+                    <span class="titulo-txt text-xl font-bold dark:text-slate-100">${t.title}</span>
+                    <span class="text-[9px] font-black uppercase text-mint-600 dark:text-mint-400 mt-2">${t.category}</span>
                 </div>
             </div>
-            <button class="text-gray-200 dark:text-slate-700 hover:text-red-500 transition-colors p-2 ml-4 flex-shrink-0">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-            </button>`;
-        
-        // Eventos de los botones de cada tarea
-        item.querySelector('input').onchange = () => { t.completed = !t.completed; actualizarApp(); };
-        item.querySelector('button').onclick = () => { if(confirm('¿Eliminar?')) { tareas = tareas.filter(o => o.id !== t.id); actualizarApp(); } };
-        lista.appendChild(item);
+            <button onclick="window.borrarTarea(${t.id})" class="hover:text-red-500 p-2 ml-4">🗑️</button>
+        `;
+        lista.appendChild(div);
     });
 
-    // Actualizo los contadores de la derecha
+    // --- ACTUALIZAR BARRA Y CONTADORES ---
     const total = tareas.length;
-    const hechas = tareas.filter(x => x.completed).length;
-    const porc = total === 0 ? 0 : Math.round((hechas / total) * 100);
-    
-    totalTxt.innerText = total;
-    porcentajeTxt.innerText = porc + '%';
-    barra.style.width = porc + '%';
-}
+    const hechas = tareas.filter(t => t.completed).length;
+    const porcentaje = total === 0 ? 0 : Math.round((hechas / total) * 100);
 
-// Eventos globales
-window.cambiarFiltro = (f) => { fEstado = f; actualizarApp(); };
-window.cambiarFiltroCat = (c) => { fCat = c; actualizarApp(); };
-window.marcarTodasCompletadas = () => { tareas.forEach(t => t.completed = true); actualizarApp(); };
-window.borrarHechas = () => { if (confirm('¿Limpiar hechas?')) { tareas = tareas.filter(t => !t.completed); actualizarApp(); } };
-window.eliminarTodo = () => { if (confirm('¿BORRAR TODO?')) { tareas = []; actualizarApp(); } };
-
-// Al enviar el formulario, en vez de LocalStorage hago el POST a la API
-form.onsubmit = (e) => {
-    e.preventDefault();
-    const texto = input.value.trim();
-    if (!texto) return;
-    
-    const nuevaTarea = { id: Date.now(), title: texto, category: selectCat.value, completed: false };
-    guardarTareaAPI(nuevaTarea); // Petición POST al server
-    
-    input.value = '';
+    if(document.getElementById('total')) document.getElementById('total').innerText = total;
+    if(document.getElementById('porcentaje-txt')) document.getElementById('porcentaje-txt').innerText = porcentaje + '%';
+    if(document.getElementById('progreso-bar')) document.getElementById('progreso-bar').style.width = porcentaje + '%';
 };
 
-buscador.oninput = () => actualizarApp();
+// 3. Funciones de Filtro (Llamadas desde el HTML)
+window.cambiarFiltro = (estado) => {
+    fEstado = estado;
+    window.render();
+};
 
-// Ejecuto la llamada a la API apenas carga el script
-cargarTareasDesdeAPI();
+window.cambiarFiltroCat = (categoria) => {
+    fCat = categoria;
+    window.render();
+};
+
+// 4. Acciones CRUD
+const toggleLoading = (show) => {
+    const loader = document.getElementById('loading-state');
+    if (loader) loader.classList.toggle('hidden', !show);
+};
+
+window.borrarHechas = async () => {
+    if (!confirm("¿Eliminar tareas completadas?")) return;
+    const hechas = tareas.filter(t => t.completed);
+    if (hechas.length === 0) return;
+
+    toggleLoading(true); // Mostrar carga
+    for (let t of hechas) {
+        await fetch(`${API_URL}/api/tareas/${t.id}`, { method: 'DELETE' });
+    }
+    await window.cargarTareas();
+    toggleLoading(false); // Ocultar carga
+};
+
+window.marcarTodasCompletadas = async () => {
+    const pendientes = tareas.filter(t => !t.completed);
+    if (pendientes.length === 0) return;
+
+    toggleLoading(true);
+    for (let t of pendientes) {
+        await fetch(`${API_URL}/api/tareas/${t.id}`, { method: 'PATCH' });
+    }
+    await window.cargarTareas();
+    toggleLoading(false);
+};
+window.toggleTarea = async (id) => {
+    await fetch(`${API_URL}/api/tareas/${id}`, { method: 'PATCH' });
+    window.cargarTareas();
+};
+
+window.borrarTarea = async (id) => {
+    await fetch(`${API_URL}/api/tareas/${id}`, { method: 'DELETE' });
+    window.cargarTareas();
+};
+window.eliminarTodo = async () => {
+    if (!confirm("⚠️ ¿Borrar ABSOLUTAMENTE TODO?")) return;
+    for (let t of tareas) {
+        await fetch(`${API_URL}/api/tareas/${t.id}`, { method: 'DELETE' });
+    }
+    window.cargarTareas();
+};
+
+// 5. Eventos de Formulario y Buscador
+const form = document.getElementById('form-tarea');
+if(form) {
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const titulo = document.getElementById('input-tarea').value;
+        const cat = document.getElementById('select-categoria').value;
+        
+        await fetch(`${API_URL}/api/tareas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: titulo, category: cat, completed: false })
+        });
+        
+        document.getElementById('input-tarea').value = '';
+        window.cargarTareas();
+    };
+}
+
+const buscadorInput = document.getElementById('buscador');
+if(buscadorInput) {
+    buscadorInput.oninput = () => window.render();
+}
+
+// 6. Tema y carga inicial
+document.getElementById('dark-mode-toggle').onclick = () => {
+    document.documentElement.classList.toggle('dark');
+};
+
+window.cargarTareas();
